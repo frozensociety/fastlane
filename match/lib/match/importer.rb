@@ -71,22 +71,25 @@ module Match
       matching_cert = certs.find do |cert|
         cert.certificate_content == cert_contents_base_64
       end
+      
+      if matching_cert.nil? || matching_cert.empty? do
+        UI.user_error!("This certificate cannot be imported - the certificate contents did not match with any available on the Developer Portal") if matching_cert.nil?
+      else
 
-      UI.user_error!("This certificate cannot be imported - the certificate contents did not match with any available on the Developer Portal") if matching_cert.nil?
+        # Make dir if doesn't exist
+        FileUtils.mkdir_p(output_dir)
+        dest_cert_path = File.join(output_dir, "#{matching_cert.id}.cer")
+        dest_p12_path = File.join(output_dir, "#{matching_cert.id}.p12")
 
-      # Make dir if doesn't exist
-      FileUtils.mkdir_p(output_dir)
-      dest_cert_path = File.join(output_dir, "#{matching_cert.id}.cer")
-      dest_p12_path = File.join(output_dir, "#{matching_cert.id}.p12")
+        # Copy files
+        IO.copy_stream(cert_path, dest_cert_path)
+        IO.copy_stream(p12_path, dest_p12_path)
+        files_to_commit = [dest_cert_path, dest_p12_path]
 
-      # Copy files
-      IO.copy_stream(cert_path, dest_cert_path)
-      IO.copy_stream(p12_path, dest_p12_path)
-      files_to_commit = [dest_cert_path, dest_p12_path]
-
-      # Encrypt and commit
-      encryption.encrypt_files if encryption
-      storage.save_changes!(files_to_commit: files_to_commit)
+        # Encrypt and commit
+        encryption.encrypt_files if encryption
+        storage.save_changes!(files_to_commit: files_to_commit)
+      end
     end
   end
 end
